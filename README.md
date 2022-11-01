@@ -1,0 +1,57 @@
+# brokersrv: Transparent gateway on top of JSON-RPC 2.0 server that's passes RPC requests to Nats Streaming server.
+
+[![Build Status](https://github.com/vmkteam/brokersrv/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/vmkteam/brokersrv/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/vmkteam/brokersrv.svg)](https://pkg.go.dev/github.com/vmkteam/zenrpc)
+
+`brokersrv` is a transparent gateway on top of JSON-RPC 2.0 server that's passes RPC requests to Nats Streaming server.
+It uses [zenrpc](https://github.com/vmkteam/zenrpc) package for processing RPC requests.
+
+# How to Use
+
+1. Configure brokersrv via TOML configuration and run it.
+2. Send RPC request to brokersrv.
+3. Use `github.com/vmkteam/brokersrv/pkg/rpcqueue` package in your RPC server for pulling RPC requests from Nats Streaming server.
+
+# Example
+### We have
+- `testsrv` test rpc server with zenrpc package as RPC server listen on `localhost:8080/rpc/`.
+- `Nats streaming server` listen on `localhost:4222`.
+- `brokersrv` with following configuration:
+```toml
+[Server]
+Host    = "localhost"
+Port    = 8071
+
+[NATS]
+URL = "nats://localhost:4222"
+ClusterID = "test-cluster"
+ClientID = "brokersrv"
+
+[Settings]
+RpcServices = [ "testsrv" ]
+```
+
+### Use brokersrv package in testrpc for processing RPC requests from Nats Streaming Server
+
+```go
+...
+
+import (
+    "github.com/nats-io/nats.go"
+    "github.com/nats-io/stan.go"
+    "github.com/vmkteam/brokersrv/pkg/rpcqueue"
+)
+
+...
+
+sc, err := stan.Connect("test-cluster", "client-id", stan.NatsURL("nats://localhost:4222"), stan.NatsOptions(nats.Name("testsrv")))
+
+...
+
+rpcQueue := rpcqueue.New("testsrv", sc, zenrpcSrv, someLoggerPrintF)
+
+go rpcQueue.Run()
+```
+
+### Send test RPC request
+Just send RPC request to `localhost:8071/rpc/testsrv/` via Postman/curl. This request will pass into Nats Streaming server.
+After that `rpcQueue` in `testsrv` will fetch this request from Nats Streaming server and pass it to own RPC server.
