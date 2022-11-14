@@ -47,9 +47,17 @@ sc, err := stan.Connect("test-cluster", "client-id", stan.NatsURL("nats://localh
 
 ...
 
-rpcQueue := rpcqueue.New("testsrv", sc, zenrpcSrv, someLoggerPrintF)
+testHandler := func(req *zenrpc.Request, resp *zenrpc.Response) bool {
+	if req.Method == "test" && resp != nil && resp.Error != nil {
+		return false
+	}
+	return true
+}
 
-go rpcQueue.Run()
+rpcQ := rpcqueue.New("testsrv", sc, zenrpcSrv, someLoggerPrintF)
+rpcQ.SetHandler(testHandler)
+
+go rpcQ.Run()
 ```
 
 ### Send test RPC request
