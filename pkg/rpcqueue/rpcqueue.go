@@ -25,11 +25,14 @@ type Message struct {
 }
 
 type RPCQueue struct {
-	subject string
-	sc      stan.Conn
-	srv     zenrpc.Server
-	pf      Printf
+	subject     string
+	sc          stan.Conn
+	srv         zenrpc.Server
+	pf          Printf
+	handlerFunc HandlerFunc
 }
+
+type HandlerFunc func(req *zenrpc.Request, resp *zenrpc.Response) bool
 
 type Printf func(format string, v ...interface{})
 
@@ -54,7 +57,7 @@ func New(subject string, sc stan.Conn, srv zenrpc.Server, pf Printf) RPCQueue {
 	}
 }
 
-// Run subscribe to NATs Streaming subject and process events
+// Run subscribe to NATs Streaming subject and process events.
 func (q *RPCQueue) Run() error {
 	_, err := q.sc.QueueSubscribe(q.subject, fmt.Sprintf("%s-group", q.subject), q.handleMessage,
 		stan.DurableName("dur"),
@@ -68,11 +71,17 @@ func (q *RPCQueue) Run() error {
 	return nil
 }
 
+// SetHandler set func to call it before acknowledging event.
+func (q *RPCQueue) SetHandler(handlerFunc HandlerFunc) {
+	q.handlerFunc = handlerFunc
+}
+
 // handleMessage send message to rpc server and acknowledge event.
 func (q *RPCQueue) handleMessage(message *stan.Msg) {
 	var (
-		m         Message
-		zenrpcReq zenrpc.Request
+		m          Message
+		zenrpcReq  *zenrpc.Request
+		zenrpcResp *zenrpc.Response
 	)
 
 	err := json.Unmarshal(message.Data, &m)
@@ -82,18 +91,32 @@ func (q *RPCQueue) handleMessage(message *stan.Msg) {
 		return
 	}
 
-	err = json.Unmarshal(m.Request, &zenrpcReq)
+	err = json.Unmarshal(m.Request, zenrpcReq)
 	if err != nil {
 		statEvents.WithLabelValues("error").Inc()
 		q.pf("failed to unmarshal zenrpc request err=%q", err)
 		return
 	}
 
-	_, err = q.srv.Do(q.newContext(m.Header), m.Request)
+	resp, err := q.srv.Do(q.newContext(m.Header), m.Request)
 	if err != nil {
 		statEvents.WithLabelValues("error").Inc()
 		q.pf("failed to send request to rpc server err=%q", err)
 		return
+	}
+
+	if resp != nil {
+		err = json.Unmarshal(resp, zenrpcResp)
+		if err != nil {
+			statEvents.WithLabelValues("error").Inc()
+			q.pf("failed to unmarshal zenrpc response err=%q", err)
+			return
+		}
+
+		if q.handlerFunc != nil && !q.handlerFunc(zenrpcReq, zenrpcResp) {
+			statEvents.WithLabelValues("error").Inc() // TODO send error metric if rpc error received?
+			return
+		}
 	}
 
 	if err = message.Ack(); err != nil {
