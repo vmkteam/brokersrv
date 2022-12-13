@@ -1,6 +1,6 @@
 # brokersrv: JSON-RPC 2.0 to NATS Streaming Gateway
 
-[![Build Status](https://github.com/vmkteam/brokersrv/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/vmkteam/brokersrv/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/vmkteam/brokersrv.svg)](https://pkg.go.dev/github.com/vmkteam/zenrpc)
+[![Build Status](https://github.com/vmkteam/brokersrv/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/vmkteam/brokersrv/actions/workflows/go.yml) [![Linter Status](https://github.com/vmkteam/brokersrv/actions/workflows/golangci-lint.yml/badge.svg?branch=master)](https://github.com/vmkteam/brokersrv/actions/workflows/golangci-lint.yml) [![brokersrv rpc queue go Reference](https://pkg.go.dev/badge/github.com/vmkteam/brokersrv.svg)](https://pkg.go.dev/github.com/vmkteam/brokersrv/pkg/rpcqueue)
 
 `brokersrv` is a transparent gateway on top of JSON-RPC 2.0 server that's passes RPC requests to NATS Streaming server.
 It uses [zenrpc](https://github.com/vmkteam/zenrpc) package for processing RPC requests.
