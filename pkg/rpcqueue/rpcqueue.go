@@ -8,15 +8,17 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
 	zm "github.com/vmkteam/zenrpc-middleware"
 	"github.com/vmkteam/zenrpc/v2"
 )
 
+const StreamName = "BROKERSRV"
+
 const (
-	stanAckWait     = 5 * time.Minute
-	stanMaxInflight = 1000
+	maxAckWait    = 5 * time.Minute
+	maxAckPending = 1000
 )
 
 type Message struct {
@@ -26,7 +28,7 @@ type Message struct {
 
 type RPCQueue struct {
 	subject string
-	sc      stan.Conn
+	js      nats.JetStreamContext
 	srv     zenrpc.Server
 	pf      Printf
 }
@@ -36,7 +38,7 @@ type Printf func(format string, v ...interface{})
 var statEvents *prometheus.CounterVec
 
 // New initialize new brokersrv rpc queue.
-func New(subject string, sc stan.Conn, srv zenrpc.Server, pf Printf) RPCQueue {
+func New(subject string, js nats.JetStreamContext, srv zenrpc.Server, pf Printf) RPCQueue {
 	statEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: subject,
 		Subsystem: "rpcqueue",
@@ -48,7 +50,7 @@ func New(subject string, sc stan.Conn, srv zenrpc.Server, pf Printf) RPCQueue {
 
 	return RPCQueue{
 		subject: subject,
-		sc:      sc,
+		js:      js,
 		srv:     srv,
 		pf:      pf,
 	}
@@ -56,11 +58,15 @@ func New(subject string, sc stan.Conn, srv zenrpc.Server, pf Printf) RPCQueue {
 
 // Run subscribe to NATs Streaming subject and process events
 func (q *RPCQueue) Run() error {
-	_, err := q.sc.QueueSubscribe(q.subject, fmt.Sprintf("%s-group", q.subject), q.handleMessage,
-		stan.DurableName("dur"),
-		stan.SetManualAckMode(),
-		stan.AckWait(stanAckWait),
-		stan.MaxInflight(stanMaxInflight))
+	_, err := q.js.QueueSubscribe(
+		fmt.Sprintf("%s.%s", StreamName, q.subject),
+		fmt.Sprintf("group-%s", q.subject), q.handleMessage,
+		nats.ManualAck(),
+		nats.Durable(fmt.Sprintf("dur-%s", q.subject)),
+		nats.BindStream(StreamName),
+		nats.MaxAckPending(maxAckPending),
+		nats.AckWait(maxAckWait),
+	)
 	if err != nil {
 		return err
 	}
@@ -69,7 +75,7 @@ func (q *RPCQueue) Run() error {
 }
 
 // handleMessage send message to rpc server and acknowledge event.
-func (q *RPCQueue) handleMessage(message *stan.Msg) {
+func (q *RPCQueue) handleMessage(message *nats.Msg) {
 	var (
 		m         Message
 		zenrpcReq zenrpc.Request
@@ -98,7 +104,7 @@ func (q *RPCQueue) handleMessage(message *stan.Msg) {
 
 	if err = message.Ack(); err != nil {
 		statEvents.WithLabelValues("error").Inc()
-		q.pf("failed to ack message=%q err=%q", message.String(), err)
+		q.pf("failed to ack message=%q err=%q", string(message.Data), err)
 		return
 	}
 

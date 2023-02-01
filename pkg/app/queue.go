@@ -3,8 +3,11 @@ package app
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
-	"github.com/nats-io/stan.go"
+	"github.com/vmkteam/brokersrv/pkg/rpcqueue"
+
+	"github.com/nats-io/nats.go"
 	"github.com/vmkteam/zenrpc/v2"
 )
 
@@ -14,13 +17,13 @@ type Message struct {
 }
 
 type QueueManager struct {
-	sc stan.Conn
+	js nats.JetStreamContext
 }
 
 // NewQueueManager returns new QueueManager.
-func NewQueueManager(sc stan.Conn) *QueueManager {
+func NewQueueManager(js nats.JetStreamContext) *QueueManager {
 	return &QueueManager{
-		sc: sc,
+		js: js,
 	}
 }
 
@@ -36,5 +39,6 @@ func (m *QueueManager) Publish(service string, zenrpcRequest zenrpc.Request, hea
 		return err
 	}
 
-	return m.sc.Publish(service, bb)
+	_, err = m.js.Publish(rpcqueue.StreamName+"."+service, bb, nats.AckWait(5*time.Minute))
+	return err
 }
