@@ -15,16 +15,12 @@ jobs:
         image: nats:alpine
         ports:
           - 4222:4222
-        options: --name nats
     steps:
     - name: Enable NATS JetStream
       run: |
-          docker exec ${{ job.services.nats.id }} ash -c 'echo "jetstream = enabled" > /etc/nats/nats-server.conf'
-          docker exec ${{ job.services.nats.id }} ash -c 'echo "server_name = \"nats-server\"" >> /etc/nats/nats-server.conf'
           docker exec ${{ job.services.nats.id }} ash -c 'echo "jetstream {}" >> /etc/nats/nats-server.conf'
           docker exec ${{ job.services.nats.id }} ash -c 'cat /etc/nats/nats-server.conf'
-          docker kill --signal=SIGHUP ${{ job.services.nats.id }}
-          docker logs nats
+          docker restart ${{ job.services.nats.id }}
 
     - uses: actions/checkout@v2
 
