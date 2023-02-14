@@ -18,9 +18,9 @@ jobs:
         options: --name nats
     steps:
     - name: Prepare NATS settings
-      run: |
+      run: >
 #          docker exec ${{ job.services.nats.id }} ash -c 'cat /etc/nats/nats-server.conf'
-          docker exec ${{ job.services.nats.id }} ash -c 'echo "port: 4222" >> /etc/nats/nats-server.conf'
+          docker exec ${{ job.services.nats.id }} ash -c 'echo "port: 4222" > /etc/nats/nats-server.conf'
           docker exec ${{ job.services.nats.id }} ash -c 'echo "jetstream = enabled" >> /etc/nats/nats-server.conf'
           docker exec ${{ job.services.nats.id }} ash -c 'echo "server_name = \"nats-server\"" >> /etc/nats/nats-server.conf'
           docker exec ${{ job.services.nats.id }} ash -c 'echo "jetstream {}" >> /etc/nats/nats-server.conf'
