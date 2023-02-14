@@ -26,6 +26,7 @@ jobs:
           docker exec ${{ job.services.nats.id }} ash -c 'cat /etc/nats/nats-server.conf'
           docker exec ${{ job.services.nats.id }} ash -c 'nats-server --signal reload'
           docker kill --signal=SIGHUP ${{ job.services.nats.id }}
+          docker restart ${{ job.services.nats.id }}
           docker ps
           docker logs nats
 
