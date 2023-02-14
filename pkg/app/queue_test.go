@@ -22,7 +22,6 @@ var (
 )
 
 func TestQueueManager(t *testing.T) {
-	//TODO send with goroutine and check race
 	err := testApp.qm.Publish(testRpcSrvSubject, testZenrpcRequest, http.Header{})
 	if err != nil {
 		t.Fatal(err)
