@@ -14,7 +14,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/namsral/flag"
 	"github.com/nats-io/nats.go"
-	"github.com/nats-io/stan.go"
 )
 
 const appName = "brokersrv"
@@ -38,20 +37,12 @@ func main() {
 		exitOnError(err)
 	}
 
-	// connect to NATS Streaming cluster
-	sc, err := stan.Connect(cfg.NATS.ClusterID,
-		cfg.NATS.ClientID,
-		stan.NatsURL(cfg.NATS.URL),
-		stan.NatsOptions(nats.Name(appName)),
-		stan.Pings(15, 10),
-		stan.SetConnectionLostHandler(func(c stan.Conn, reason error) {
-			log.Fatalf("Connection lost, reason: %v", reason)
-		}),
-	)
+	// connect to NATS cluster
+	nc, err := nats.Connect(cfg.NATS.URL, nats.Name(appName), nats.MaxReconnects(100), nats.ReconnectWait(3*time.Second))
 	exitOnError(err)
 
 	// create & run app
-	application := app.New(appName, cfg, sc)
+	application := app.New(appName, cfg, nc)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)

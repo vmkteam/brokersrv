@@ -8,6 +8,31 @@ on:
 
 jobs:
 
+  test:
+    runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:alpine
+        ports:
+          - 4222:4222
+    steps:
+    - name: Enable NATS JetStream
+      run: |
+          docker exec ${{ job.services.nats.id }} ash -c 'echo "jetstream {}" > /etc/nats/nats-server.conf'
+          docker restart ${{ job.services.nats.id }}
+
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18
+
+    - name: Test
+      env:
+        NATS_URL: "nats://localhost:4222"
+      run: go test -v ./...
+
   build:
     runs-on: ubuntu-latest
     steps:

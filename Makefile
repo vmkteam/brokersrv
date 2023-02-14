@@ -9,6 +9,9 @@ LDFLAGS=-ldflags "-X=main.version=$(VERSION)"
 fmt:
 	@goimports -local ${NAME} -l -w $(PKG)
 
+test:
+	@go test -v ./...
+
 lint:
 	@golangci-lint run -c .golangci.yml
 
