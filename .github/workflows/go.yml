@@ -11,11 +11,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     services:
-      jetstream:
+      nats:
         image: nats:alpine
-        ports:
-          - 4222:4222
+#        ports:
+#          - 4222:4222
     steps:
+    - name: Prepare NATS settings
+      run: |
+          docker exec ${{ job.services.jetstream.id }} ash -c 'cat /etc/nats/nats-server.conf'
+          docker exec ${{ job.services.jetstream.id }} ash -c 'echo "jetstream = enabled" >> /etc/nats/nats-server.conf'
+          docker exec ${{ job.services.jetstream.id }} ash -c 'cat /etc/nats/nats-server.conf'
+          docker kill --signal=SIGHUP ${{ job.services.jetstream.id }}
+          docker ps
+
     - uses: actions/checkout@v2
 
     - name: Set up Go
@@ -23,16 +31,9 @@ jobs:
       with:
         go-version: 1.18
 
-    - name: Prepare NATS settings
-      run: |
-          docker exec ${{ job.services.jetstream.id }} ash -c 'cat /etc/nats/nats-server.conf'
-          docker exec ${{ job.services.jetstream.id }} ash -c 'echo "jetstream = enabled" >> /etc/nats/nats-server.conf'
-          docker exec ${{ job.services.jetstream.id }} ash -c 'cat /etc/nats/nats-server.conf'
-          docker kill --signal=SIGHUP ${{ job.services.jetstream.id }}
-
     - name: Test
       env:
-        NATS_URL: "nats://localhost:4222"
+        NATS_URL: "nats://nats:4222"
       run: go test -v ./...
 
   build:
