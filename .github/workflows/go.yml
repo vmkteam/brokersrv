@@ -13,8 +13,8 @@ jobs:
     services:
       nats:
         image: nats:alpine
-#        ports:
-#          - 4222:4222
+        ports:
+          - 4222:4222
     steps:
     - name: Prepare NATS settings
       run: |
