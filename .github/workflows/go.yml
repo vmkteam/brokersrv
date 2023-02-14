@@ -19,7 +19,6 @@ jobs:
     - name: Enable NATS JetStream
       run: |
           docker exec ${{ job.services.nats.id }} ash -c 'echo "jetstream {}" > /etc/nats/nats-server.conf'
-          docker exec ${{ job.services.nats.id }} ash -c 'cat /etc/nats/nats-server.conf'
           docker restart ${{ job.services.nats.id }}
 
     - uses: actions/checkout@v2
