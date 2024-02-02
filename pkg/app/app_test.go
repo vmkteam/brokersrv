@@ -35,7 +35,7 @@ func env(v, def string) string {
 }
 
 func TestMain(m *testing.M) {
-	rand.Seed(time.Now().UTC().UnixNano())
+	rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 	var cfg Config
 	cfg.Settings.RpcServices = testNatsSubjects
