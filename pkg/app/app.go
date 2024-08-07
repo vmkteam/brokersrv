@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/vmkteam/brokersrv/pkg/rpcqueue"
 
 	"github.com/labstack/echo/v4"
@@ -29,7 +30,7 @@ type App struct {
 	cfg     Config
 	echo    *echo.Echo
 	nc      *nats.Conn
-	js      nats.JetStreamContext
+	js      jetstream.JetStream
 
 	qm *QueueManager
 }
@@ -62,23 +63,21 @@ func (a *App) Run() error {
 
 // registerJetStream configure and register stream for NATS JetStream
 func (a *App) registerJetStream() error {
-	js, err := a.nc.JetStream()
+	ctx := context.Background()
+	js, err := jetstream.New(a.nc)
 	if err != nil {
 		return err
 	}
 	a.js = js
 
-	jsCfg := &nats.StreamConfig{
+	jsCfg := jetstream.StreamConfig{
 		Name:      rpcqueue.StreamName,
-		Retention: nats.WorkQueuePolicy,
-		Storage:   nats.FileStorage,
+		Retention: jetstream.WorkQueuePolicy,
+		Storage:   jetstream.FileStorage,
 		Subjects:  []string{rpcqueue.StreamName + ".*"},
 	}
 
-	_, err = js.AddStream(jsCfg)
-	if err == nats.ErrStreamNameAlreadyInUse {
-		_, err = js.UpdateStream(jsCfg)
-	}
+	_, err = js.CreateOrUpdateStream(ctx, jsCfg)
 
 	return err
 }

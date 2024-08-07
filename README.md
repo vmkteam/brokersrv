@@ -34,24 +34,18 @@ RpcServices = [ "testsrv" ]
 ...
 
 import (
-    "github.com/nats-io/nats.go"
     "github.com/vmkteam/brokersrv/pkg/rpcqueue"
 )
 
 ...
 
-nc, err := nats.Connect("nats://localhost:4222", nats.Name("testsrv"), nats.MaxReconnects(100), nats.ReconnectWait(3*time.Second))
+nc, err := rpcqueue.NewClient("nats://localhost:4222", "testsrv")
 
 ...
 
-js, err := nc.JetStream()
-
-
-...
-
-rpcQueue := rpcqueue.New("testsrv", js, zenrpcSrv, someLoggerPrintF)
-
+rpcQueue := rpcqueue.New("testsrv", nc.JetStreamConn, zenrpcSrv, someLoggerPrintF)
 go rpcQueue.Run()
+
 ```
 
 ### Send test RPC request

@@ -52,7 +52,7 @@ func (a *App) processRpcServices(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "request ID not empty", nil))
 	}
 
-	err = a.qm.Publish(service, req, c.Request().Header)
+	err = a.qm.Publish(c.Request().Context(), service, req, c.Request().Header)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, zenrpc.NewResponseError(nil, zenrpc.InternalError, err.Error(), nil))
 	}
