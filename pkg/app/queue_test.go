@@ -22,7 +22,8 @@ var (
 )
 
 func TestQueueManager(t *testing.T) {
-	err := testApp.qm.Publish(testRpcSrvSubject, testZenrpcRequest, http.Header{})
+	ctx := context.Background()
+	err := testApp.qm.Publish(ctx, testRpcSrvSubject, testZenrpcRequest, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestQueueManager(t *testing.T) {
 
 	testQueue := rpcqueue.New(testRpcSrvSubject, testRpcQueueClient.JetStreamConn, testRpc, t.Logf)
 
-	err = testQueue.Run()
+	err = testQueue.Run(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

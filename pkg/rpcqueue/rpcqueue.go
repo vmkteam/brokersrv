@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/prometheus/client_golang/prometheus"
 	zm "github.com/vmkteam/zenrpc-middleware"
 	"github.com/vmkteam/zenrpc/v2"
@@ -28,7 +28,7 @@ type Message struct {
 
 type RPCQueue struct {
 	subject string
-	js      nats.JetStreamContext
+	js      jetstream.JetStream
 	srv     zenrpc.Server
 	pf      Printf
 }
@@ -38,7 +38,7 @@ type Printf func(format string, v ...interface{})
 var statEvents *prometheus.CounterVec
 
 // New initialize new brokersrv rpc queue.
-func New(subject string, js nats.JetStreamContext, srv zenrpc.Server, pf Printf) RPCQueue {
+func New(subject string, js jetstream.JetStream, srv zenrpc.Server, pf Printf) RPCQueue {
 	statEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: subject,
 		Subsystem: "rpcqueue",
@@ -57,16 +57,20 @@ func New(subject string, js nats.JetStreamContext, srv zenrpc.Server, pf Printf)
 }
 
 // Run subscribe to NATs Streaming subject and process events
-func (q *RPCQueue) Run() error {
-	_, err := q.js.QueueSubscribe(
-		fmt.Sprintf("%s.%s", StreamName, q.subject),
-		fmt.Sprintf("group-%s", q.subject), q.handleMessage,
-		nats.ManualAck(),
-		nats.Durable(fmt.Sprintf("dur-%s", q.subject)),
-		nats.BindStream(StreamName),
-		nats.MaxAckPending(maxAckPending),
-		nats.AckWait(maxAckWait),
-	)
+func (q *RPCQueue) Run(ctx context.Context) error {
+	c, err := q.js.CreateOrUpdateConsumer(ctx, StreamName, jetstream.ConsumerConfig{
+		Name:          fmt.Sprintf("dur-%s", q.subject),
+		FilterSubject: fmt.Sprintf("%s.%s", StreamName, q.subject),
+		Durable:       fmt.Sprintf("dur-%s", q.subject),
+		AckPolicy:     jetstream.AckExplicitPolicy,
+		MaxAckPending: maxAckPending,
+		AckWait:       maxAckWait,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Consume(q.handleMessage)
 	if err != nil {
 		return err
 	}
@@ -75,13 +79,13 @@ func (q *RPCQueue) Run() error {
 }
 
 // handleMessage send message to rpc server and acknowledge event.
-func (q *RPCQueue) handleMessage(message *nats.Msg) {
+func (q *RPCQueue) handleMessage(message jetstream.Msg) {
 	var (
 		m         Message
 		zenrpcReq zenrpc.Request
 	)
 
-	err := json.Unmarshal(message.Data, &m)
+	err := json.Unmarshal(message.Data(), &m)
 	if err != nil {
 		statEvents.WithLabelValues("error").Inc()
 		q.pf("failed to unmarshal message err=%q", err)
@@ -104,7 +108,7 @@ func (q *RPCQueue) handleMessage(message *nats.Msg) {
 
 	if err = message.Ack(); err != nil {
 		statEvents.WithLabelValues("error").Inc()
-		q.pf("failed to ack message=%q err=%q", string(message.Data), err)
+		q.pf("failed to ack message=%q err=%q", string(message.Data()), err)
 		return
 	}
 
