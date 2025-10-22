@@ -9,10 +9,10 @@ require (
 	github.com/namsral/flag v1.7.4-pre
 	github.com/nats-io/nats.go v1.47.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/vmkteam/appkit v0.0.1
+	github.com/vmkteam/appkit v0.1.0
 	github.com/vmkteam/embedlog v0.1.3
 	github.com/vmkteam/zenrpc-middleware v1.3.0
-	github.com/vmkteam/zenrpc/v2 v2.2.12
+	github.com/vmkteam/zenrpc/v2 v2.3.0
 )
 
 require (

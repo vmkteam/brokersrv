@@ -39,14 +39,14 @@ type Message struct {
 type RPCQueue struct {
 	subject string
 	client  *Client
-	srv     zenrpc.Server
+	srv     *zenrpc.Server
 	pf      Print
 }
 
 type Print func(ctx context.Context, msg string, args ...any)
 
 // New initialize new brokersrv rpc queue.
-func New(subject string, client *Client, srv zenrpc.Server, p Print) RPCQueue {
+func New(subject string, client *Client, srv *zenrpc.Server, p Print) RPCQueue {
 	registerMetricsOnce.Do(func() {
 		prometheus.MustRegister(statEvents)
 	})
