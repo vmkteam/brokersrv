@@ -23,9 +23,10 @@ Port    = 8071
 
 [NATS]
 URL = "nats://localhost:4222"
+StreamReplicas = 1
 
 [Settings]
-RpcServices = [ "testsrv" ]
+RPCServices = [ "testsrv" ]
 ```
 
 ### Use brokersrv package in testrpc for processing RPC requests from NATS JetStream Server
@@ -46,8 +47,22 @@ nc, err := rpcqueue.NewClient("nats://localhost:4222", "testsrv")
 rpcQueue := rpcqueue.New("testsrv", nc.JetStreamConn, zenrpcSrv, someLoggerPrintF)
 go rpcQueue.Run()
 
+...
+
+rpcQueue.Shutdown()
+
 ```
 
 ### Send test RPC request
 Just send RPC request to `localhost:8071/rpc/testsrv/` via Postman/curl. This request will pass into NATS JetStream server.
 After that `rpcQueue` in `testsrv` will fetch this request from NATS JetStream server and pass it to own RPC server.
+
+
+### Migration guide for 1.3.0
+1. Upgrade brokersrv server to 1.3.0-m, leaving all your services in `LegacySettings.RpcServices`, and `Settings.RpcServices` empty
+2. Upgrade testrpc service to use 1.3.0-m version of brokersrv. Make sure service is running both `rpcqueue.LegacyRun` and `rpcqueue.Run`
+3. Move upgraded service in brokersrv config from `LegacySettings.RpcServices` to `Settings.RpcServices`
+4. Wait until there are no messages left to consume on old version (streamName = "BROKERSRV") and messages steadily flow through new version (streamName = "BROKERSRV-V2")
+5. Upgrade testrpc service to use 1.3.0 version of brokersrv and remove `rpcqueue.LegacyRun`
+6. Repeat steps 2-5 until all services migrate to new version of brokersrv
+7. Finally, upgrade brokersrv server to 1.3.0, and remove `LegacySettings` from config

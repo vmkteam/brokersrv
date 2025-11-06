@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/vmkteam/brokersrv/pkg/rpcqueue"
-
 	"github.com/vmkteam/zenrpc/v2"
 )
 
@@ -29,7 +27,7 @@ func NewQueueManager(js jetstream.JetStream) *QueueManager {
 }
 
 // Publish prepare and publish message to NATs.
-func (m *QueueManager) Publish(ctx context.Context, service string, zenrpcRequest zenrpc.Request, headers http.Header) error {
+func (m *QueueManager) Publish(ctx context.Context, stream, service string, zenrpcRequest zenrpc.Request, headers http.Header) error {
 	message := Message{
 		Request: zenrpcRequest,
 		Header:  headers,
@@ -40,6 +38,6 @@ func (m *QueueManager) Publish(ctx context.Context, service string, zenrpcReques
 		return err
 	}
 
-	_, err = m.js.Publish(ctx, rpcqueue.StreamName+"."+service, bb, jetstream.WithRetryWait(5*time.Minute))
+	_, err = m.js.Publish(ctx, stream+"."+service, bb, jetstream.WithRetryWait(5*time.Minute))
 	return err
 }
